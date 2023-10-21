@@ -1,10 +1,14 @@
+#![allow(dead_code)]
 use super::{IncludeTests, RsFileMetrics, ScanFileError};
 
+use crate::extern_syn_visitor::{
+    ExternSynVisitor, IncludeRustFunctions, RsFileExternDefinitions,
+};
 use crate::geiger_syn_visitor::GeigerSynVisitor;
 
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Scan a single file for `unsafe` usage.
 pub fn find_unsafe_in_file(
@@ -33,11 +37,26 @@ pub fn find_unsafe_in_string(
     Ok(vis.metrics)
 }
 
+pub fn find_extern_in_string(
+    file_path: &PathBuf,
+    src: &str,
+    include_rust_fns: IncludeRustFunctions,
+) -> Result<RsFileExternDefinitions, syn::Error> {
+    use syn::visit::Visit;
+    let syntax = syn::parse_file(src)?;
+    let mut vis = ExternSynVisitor::new(file_path, include_rust_fns);
+    vis.visit_file(&syntax);
+    Ok(vis.extern_definitions)
+}
+
 #[cfg(test)]
 mod find_tests {
+    use crate::extern_syn_visitor::ExternDefinition;
+
     use super::*;
 
     use cargo_geiger_serde::{Count, CounterBlock};
+    use proc_macro2::LineColumn;
     use rstest::*;
     use std::io::Write;
     use tempfile::tempdir;
@@ -228,5 +247,147 @@ mod tests {
         let unsafe_in_string = unsafe_in_string_result.unwrap();
 
         assert_eq!(unsafe_in_string, expected_rs_file_metrics);
+    }
+
+    const EXTERN_FILE_CONTENT_STRING: &str = "use std::io::Write;
+use libc::{c_int, size_t};
+
+#[link(name = \"snappy\")]
+extern \"C\" {
+    fn snappy_compress(input: *const u8,
+                        input_length: size_t,
+                        compressed: *mut u8,
+                        compressed_length: *mut size_t) -> c_int;
+    fn snappy_uncompress(compressed: *const u8,
+                            compressed_length: size_t,
+                            uncompressed: *mut u8,
+                            uncompressed_length: *mut size_t) -> c_int;
+    fn snappy_max_compressed_length(source_length: size_t) -> size_t;
+    fn snappy_uncompressed_length(compressed: *const u8,
+                                    compressed_length: size_t,
+                                    result: *mut size_t) -> c_int;
+    fn snappy_validate_compressed_buffer(compressed: *const u8,
+                                            compressed_length: size_t) -> c_int;
+}
+
+#[no_mangle]
+pub extern \"C\" fn hello_from_rust() {
+    println!(\"Hello from Rust!\");
+}
+
+pub unsafe fn f() {
+    unimplemented!()
+}
+
+pub fn g() {
+    std::io::stdout().write_all(unsafe {
+        std::str::from_utf8_unchecked(b\"binarystring\")
+    }.as_bytes()).unwrap();
+}
+
+#[no_mangle]
+pub fn h() {
+    unimplemented!()
+}
+
+#[export_name = \"exported_g\"]
+pub fn g() {
+    unimplemented!()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[link(name = \"snappy\")]
+    extern \"C\" {
+        fn foo(asd: size_t) -> size_t;
+    }
+
+    #[test]
+    #[no_mangle]
+    pub extern \"C\" fn bar() {
+        println!(\"Hello from Rust!\");
+    }
+
+    #[test]
+    fn test_1() {
+        unsafe {
+            println!(\"Inside unsafe\");
+        }
+    }
+}
+";
+
+    #[rstest(
+        file_path,
+        include_rust_fns,
+        expected_rs_file_extern_definitions,
+        case(
+            &PathBuf::from("/test/extern_file_content_string"),
+            IncludeRustFunctions::No,
+            RsFileExternDefinitions::from([
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 6, column: 7 } }),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 10, column: 7 } }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 14, column: 7 } }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 15, column: 7 } }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 18, column: 7 } }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 54, column: 11 } }),
+        ])),
+        case(
+            &PathBuf::from("/test/extern_file_content_string"),
+            IncludeRustFunctions::Yes,
+            RsFileExternDefinitions::from([
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 6, column: 7 } }),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 10, column: 7 } }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 14, column: 7 } }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 15, column: 7 } }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 18, column: 7 } }),
+            (String::from("hello_from_rust"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 23, column: 18 } }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 54, column: 11 } }),
+            (String::from("bar"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 59, column: 22 } }),
+        ]))
+    )]
+    fn find_extern_in_string_test(
+        file_path: &PathBuf,
+        include_rust_fns: IncludeRustFunctions,
+        expected_rs_file_extern_definitions: RsFileExternDefinitions,
+    ) {
+        let result = find_extern_in_string(
+            file_path,
+            EXTERN_FILE_CONTENT_STRING,
+            include_rust_fns,
+        );
+
+        assert!(result.is_ok());
+
+        let result = result.unwrap();
+
+        for (name, extern_definition) in &result {
+            assert!(expected_rs_file_extern_definitions.contains_key(name));
+            assert!(
+                <std::path::PathBuf as AsRef<std::path::Path>>::as_ref(
+                    &expected_rs_file_extern_definitions
+                        .get(name)
+                        .unwrap()
+                        .file
+                ) == file_path
+            );
+            assert!(
+                expected_rs_file_extern_definitions.get(name).unwrap().line
+                    == extern_definition.line
+            );
+        }
+
+        for (name, extern_definition) in &expected_rs_file_extern_definitions {
+            assert!(result.contains_key(name));
+            assert!(
+                <std::path::PathBuf as AsRef<std::path::Path>>::as_ref(
+                    &result.get(name).unwrap().file
+                ) == file_path
+            );
+            assert!(result.get(name).unwrap().line == extern_definition.line);
+        }
     }
 }
