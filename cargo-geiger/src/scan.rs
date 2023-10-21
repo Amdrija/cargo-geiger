@@ -11,6 +11,7 @@ use crate::mapping::{
     ToCargoGeigerPackageId,
 };
 
+use geiger::extern_syn_visitor::RsFileExternDefinitions;
 pub use rs_file::RsFileMetricsWrapper;
 
 use default::scan_unsafe;
@@ -53,6 +54,13 @@ pub struct ScanResult {
 #[derive(Default)]
 pub struct GeigerContext {
     pub package_id_to_metrics: HashMap<PackageId, PackageMetrics>,
+    pub ignored_paths: HashSet<PathBuf>,
+}
+
+#[derive(Default)]
+pub struct ExternContext {
+    pub package_id_to_extern_definitions:
+        HashMap<PackageId, RsFileExternDefinitions>,
     pub ignored_paths: HashSet<PathBuf>,
 }
 

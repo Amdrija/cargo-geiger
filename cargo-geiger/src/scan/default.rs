@@ -6,7 +6,7 @@ use crate::graph::Graph;
 use crate::mapping::CargoMetadataParameters;
 use crate::scan::rs_file::resolve_rs_file_deps;
 
-use super::find::find_unsafe;
+use super::find::{find_extern, find_unsafe};
 use super::{
     list_files_used_but_not_scanned, package_metrics, unsafe_stats,
     ScanDetails, ScanMode, ScanParameters, ScanResult,
@@ -105,6 +105,22 @@ fn scan(
 
     match resolve_rs_file_deps(&compile_options, workspace) {
         Ok(rs_files_used) => {
+            let extern_context = find_extern(
+                cargo_metadata_parameters,
+                scan_parameters.config,
+                ScanMode::Full,
+                scan_parameters.print_config,
+            )?;
+
+            for (package_id, extern_definitions) in
+                extern_context.package_id_to_extern_definitions
+            {
+                println!(
+                    "PackageId: {:?} {:?}",
+                    package_id, extern_definitions
+                );
+            }
+
             let geiger_context = find_unsafe(
                 cargo_metadata_parameters,
                 scan_parameters.config,

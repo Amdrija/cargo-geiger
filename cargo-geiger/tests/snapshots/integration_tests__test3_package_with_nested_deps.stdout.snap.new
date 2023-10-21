@@ -1,0 +1,35 @@
+---
+source: cargo-geiger/tests/integration_tests.rs
+assertion_line: 50
+expression: stdout
+---
+PackageId: PackageId { repr: "doc-comment 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" } {}
+PackageId: PackageId { repr: "ref_slice 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" } {}
+PackageId: PackageId { repr: "test2_package_with_shallow_deps 0.1.0 (path+file:///tmp/.tmp5i79Q1/test2_package_with_shallow_deps)" } {}
+PackageId: PackageId { repr: "test3_package_with_nested_deps 0.1.0 (path+file:///tmp/.tmp5i79Q1/test3_package_with_nested_deps)" } {}
+PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmp5i79Q1/test1_package_with_no_deps)" } {}
+PackageId: PackageId { repr: "either 1.5.2 (registry+https://github.com/rust-lang/crates.io-index)" } {}
+PackageId: PackageId { repr: "itertools 0.8.0 (git+https://github.com/rust-itertools/itertools.git?rev=8761fbefb3b209#8761fbefb3b209cf41829f8dba38044b69c1d8dd)" } {}
+
+Metric output format: x/y
+    x = unsafe code used by the build
+    y = total unsafe code found in the crate
+
+Symbols: 
+    :) = No `unsafe` usage found, declares #![forbid(unsafe_code)]
+    ?  = No `unsafe` usage found, missing #![forbid(unsafe_code)]
+    !  = `unsafe` usage found
+
+Functions  Expressions  Impls  Traits  Methods  Dependency
+
+0/0        1/1          0/0    0/0     0/0      !  test3_package_with_nested_deps 0.1.0
+0/0        0/0          0/0    0/0     0/0      ?  ├── doc-comment 0.3.1
+0/0        0/72         0/3    0/1     0/3      ?  ├── itertools 0.8.0
+0/0        0/0          0/0    0/0     0/0      ?  │   └── either 1.5.2
+1/1        4/4          0/0    0/0     0/0      !  └── test2_package_with_shallow_deps 0.1.0
+0/0        2/2          0/0    0/0     0/0      !      ├── ref_slice 1.1.1
+1/1        2/2          0/0    0/0     0/0      !      └── test1_package_with_no_deps 0.1.0
+
+2/2        9/81         0/3    0/1     0/3    
+
+

@@ -3,6 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 use proc_macro2::LineColumn;
 use syn::visit;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExternDefinition {
     pub file: PathBuf,
     pub line: LineColumn,

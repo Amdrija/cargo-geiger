@@ -6,12 +6,15 @@ use crate::scan::rs_file::{
 };
 use crate::scan::PackageMetrics;
 
-use super::{GeigerContext, ScanMode};
+use super::{ExternContext, GeigerContext, ScanMode};
 
 use cargo::{CargoResult, CliError, Config};
 use cargo_metadata::PackageId;
+use geiger::extern_syn_visitor::{
+    IncludeRustFunctions, RsFileExternDefinitions,
+};
 use geiger::find::find_unsafe_in_file;
-use geiger::{IncludeTests, RsFileMetrics, ScanFileError};
+use geiger::{find_extern_in_file, IncludeTests, RsFileMetrics, ScanFileError};
 use rayon::{in_place_scope, prelude::*};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -42,6 +45,27 @@ pub fn find_unsafe(
     Ok(geiger_context)
 }
 
+pub fn find_extern(
+    cargo_metadata_parameters: &CargoMetadataParameters,
+    config: &Config,
+    mode: ScanMode,
+    print_config: &PrintConfig,
+) -> Result<ExternContext, CliError> {
+    let mut progress = cargo::util::Progress::new("Find extern", config);
+    let geiger_context = find_extern_in_packages_with_progress(
+        print_config.allow_partial_results,
+        cargo_metadata_parameters,
+        IncludeRustFunctions::No,
+        mode,
+        |progress_count, count| {
+            progress.tick(progress_count, count, "find_extern_tick")
+        },
+    );
+    progress.clear();
+    config.shell().status("Find extern", "done")?;
+    Ok(geiger_context)
+}
+
 fn find_unsafe_in_packages_with_progress<F>(
     allow_partial_results: bool,
     cargo_metadata_parameters: &CargoMetadataParameters,
@@ -63,6 +87,39 @@ where
                 allow_partial_results,
                 cargo_metadata_parameters,
                 include_tests,
+                mode,
+                Some(on_processed),
+            ))
+        });
+
+        while let Ok((progress_counter, count)) = progress_receiver.recv() {
+            let _ = progress_fn(progress_counter, count);
+        }
+    });
+    res.unwrap()
+}
+
+fn find_extern_in_packages_with_progress<F>(
+    allow_partial_results: bool,
+    cargo_metadata_parameters: &CargoMetadataParameters,
+    include_rust_fns: IncludeRustFunctions,
+    mode: ScanMode,
+    mut progress_fn: F,
+) -> ExternContext
+where
+    F: FnMut(usize, usize) -> CargoResult<()>,
+{
+    let mut res: Option<ExternContext> = None;
+    let (progress_sender, progress_receiver) = sync_channel(0);
+    let on_processed = move |count_processed, count| {
+        progress_sender.send((count_processed, count)).unwrap();
+    };
+    in_place_scope(|s| {
+        s.spawn(|_| {
+            res = Some(find_extern_in_packages(
+                allow_partial_results,
+                cargo_metadata_parameters,
+                include_rust_fns,
                 mode,
                 Some(on_processed),
             ))
@@ -147,6 +204,79 @@ where
 
     GeigerContext {
         package_id_to_metrics: cargo_core_package_metrics,
+        ignored_paths: Arc::try_unwrap(ignored).unwrap().into_inner().unwrap(),
+    }
+}
+
+fn find_extern_in_packages<F>(
+    allow_partial_results: bool,
+    cargo_metadata_parameters: &CargoMetadataParameters,
+    include_rust_fns: IncludeRustFunctions,
+    mode: ScanMode,
+    on_processed: Option<F>,
+) -> ExternContext
+where
+    F: Fn(usize, usize) + Send + Sync,
+{
+    let package_id_to_extern_definitions = Arc::new(Mutex::new(HashMap::new()));
+    let ignored = Arc::new(Mutex::new(HashSet::new()));
+    let packages = cargo_metadata_parameters.metadata.packages.to_vec();
+    let package_code_files: Vec<_> =
+        find_rs_files_in_packages(&packages).collect();
+    let package_code_file_count = package_code_files.len();
+    let processed_count = AtomicUsize::new(0);
+    package_code_files.into_par_iter().for_each_with(
+        (package_id_to_extern_definitions.clone(), ignored.clone()),
+        |(package_id_to_metrics, ignored), (package_id, rs_code_file)| {
+            if let RsFile::CustomBuildRoot(path_buf) = rs_code_file {
+                let mut ignored = ignored.lock().unwrap();
+                ignored.insert(path_buf);
+                return;
+            }
+            let (is_entry_point, path_buf) =
+                into_is_entry_point_and_path_buf(rs_code_file);
+            if let (false, ScanMode::EntryPointsOnly) = (is_entry_point, &mode)
+            {
+                return;
+            }
+            match find_extern_in_file(&path_buf, include_rust_fns) {
+                Err(error) => {
+                    handle_unsafe_in_file_error(
+                        allow_partial_results,
+                        error,
+                        &path_buf,
+                    );
+                }
+                Ok(rs_file_extern_definitions) => {
+                    let package_id_to_extern_definitions =
+                        &mut package_id_to_metrics.lock().unwrap();
+                    update_package_id_to_extern_definitions_with_rs_file_extern_definitions(package_id, package_id_to_extern_definitions,  rs_file_extern_definitions);
+                }
+            }
+
+            if let Some(on_processed) = &on_processed {
+                on_processed(
+                    processed_count.fetch_add(1, Ordering::Relaxed),
+                    package_code_file_count,
+                );
+            }
+        },
+    );
+
+    let cargo_core_package_metrics: HashMap<
+        PackageId,
+        RsFileExternDefinitions,
+    > = package_id_to_extern_definitions
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(cargo_metadata_package_id, package_metrics)| {
+            (cargo_metadata_package_id.clone(), package_metrics.clone())
+        })
+        .collect::<HashMap<PackageId, RsFileExternDefinitions>>();
+
+    ExternContext {
+        package_id_to_extern_definitions: cargo_core_package_metrics,
         ignored_paths: Arc::try_unwrap(ignored).unwrap().into_inner().unwrap(),
     }
 }
@@ -245,6 +375,26 @@ fn update_package_id_to_metrics_with_rs_file_metrics(
         .or_insert_with(RsFileMetricsWrapper::default);
     wrapper.metrics = rs_file_metrics;
     wrapper.is_crate_entry_point = is_entry_point;
+}
+
+fn update_package_id_to_extern_definitions_with_rs_file_extern_definitions(
+    package_id: PackageId,
+    package_id_to_extern_definitions: &mut HashMap<
+        PackageId,
+        RsFileExternDefinitions,
+    >,
+    rs_file_extern_definitions: RsFileExternDefinitions,
+) {
+    match package_id_to_extern_definitions.entry(package_id) {
+        std::collections::hash_map::Entry::Occupied(mut occupied_entry) => {
+            for (fn_name, extern_definition) in rs_file_extern_definitions {
+                occupied_entry.get_mut().insert(fn_name, extern_definition);
+            }
+        }
+        std::collections::hash_map::Entry::Vacant(vacant_entry) => {
+            vacant_entry.insert(rs_file_extern_definitions);
+        }
+    };
 }
 
 #[cfg(test)]

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use super::{IncludeTests, RsFileMetrics, ScanFileError};
 
 use crate::extern_syn_visitor::{
