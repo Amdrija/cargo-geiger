@@ -115,7 +115,19 @@ fn scan(
             for (id, metrics) in geiger_context.package_id_to_metrics.iter() {
                 println!("Package ID: {}", id.to_string());
                 for (def, calls) in metrics.extern_calls.iter() {
-                    println!("DEFINITION: {:?} CALLS: {:?}", def, calls);
+                    print!("\tFUNCTION: {}", def.name);
+                    print!(" file:{}", def.file.to_str().unwrap_or_default());
+                    println!(" line:{} column:{}", def.line, def.column);
+
+                    println!("CALLS:");
+                    for call in calls {
+                        print!(
+                            "\t\tfile:{} ",
+                            call.file.to_str().unwrap_or_default()
+                        );
+                        println!("line:{} column:{}", call.line, call.column);
+                        println!("---------");
+                    }
                 }
                 println!("*****************************************");
             }
