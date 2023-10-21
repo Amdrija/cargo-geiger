@@ -3,9 +3,11 @@ source: cargo-geiger/tests/integration_tests.rs
 assertion_line: 50
 expression: stdout
 ---
-PackageId: PackageId { repr: "num_cpus 1.10.1 (path+file:///tmp/.tmpBr757w/support/num_cpus)" } {}
-PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmpBr757w/test1_package_with_no_deps)" } {}
-PackageId: PackageId { repr: "test7_package_with_patched_dep 0.1.0 (path+file:///tmp/.tmpBr757w/test7_package_with_patched_dep)" } {}
+PackageId: PackageId { repr: "test7_package_with_patched_dep 0.1.0 (path+file:///tmp/.tmpHniBpT/test7_package_with_patched_dep)" } {}
+PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmpHniBpT/test1_package_with_no_deps)" } {}
+PackageId: PackageId { repr: "num_cpus 1.10.1 (path+file:///tmp/.tmpHniBpT/support/num_cpus)" } {}
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(154..157) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: io, span: bytes(159..161) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: stdout, span: bytes(163..169) }, arguments: None }] } }), paren_token: Paren, args: [] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(199..202) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: str, span: bytes(204..207) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: from_utf8_unchecked, span: bytes(209..228) }, arguments: None }] } }), paren_token: Paren, args: [Lit(ExprLit { attrs: [], lit: ByteStr(LitByteStr { token: b"binarystring" }) })] }
 
 Metric output format: x/y
     x = unsafe code used by the build
@@ -20,8 +22,8 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 0/0        0/0          0/0    0/0     0/0      :) test7_package_with_patched_dep 0.1.0
 0/0        0/0          0/0    0/0     0/0      ?  └── num_cpus 1.10.1
-1/1        2/2          0/0    0/0     0/0      !      └── test1_package_with_no_deps 0.1.0
+1/1        1/1          0/0    0/0     0/0      !      └── test1_package_with_no_deps 0.1.0
 
-1/1        2/2          0/0    0/0     0/0    
+1/1        1/1          0/0    0/0     0/0    
 
 

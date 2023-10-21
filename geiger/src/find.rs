@@ -23,19 +23,28 @@ fn load_file(path: &Path) -> Result<String, ScanFileError> {
 pub fn find_unsafe_in_file(
     path: &Path,
     include_tests: IncludeTests,
+    extern_definitions: &RsFileExternDefinitions,
 ) -> Result<RsFileMetrics, ScanFileError> {
     let src = load_file(path)?;
-    find_unsafe_in_string(&src, include_tests)
-        .map_err(|e| ScanFileError::Syn(e, path.to_path_buf()))
+    find_unsafe_in_string(
+        &src,
+        include_tests,
+        extern_definitions,
+        &path.to_path_buf(),
+    )
+    .map_err(|e| ScanFileError::Syn(e, path.to_path_buf()))
 }
 
 pub fn find_unsafe_in_string(
     src: &str,
     include_tests: IncludeTests,
+    extern_definitions: &RsFileExternDefinitions,
+    file: &PathBuf,
 ) -> Result<RsFileMetrics, syn::Error> {
     use syn::visit::Visit;
     let syntax = syn::parse_file(src)?;
-    let mut vis = GeigerSynVisitor::new(include_tests);
+    let mut vis =
+        GeigerSynVisitor::new(include_tests, extern_definitions, file);
     vis.visit_file(&syntax);
     Ok(vis.metrics)
 }
@@ -68,9 +77,8 @@ mod find_tests {
     use super::*;
 
     use cargo_geiger_serde::{Count, CounterBlock};
-    use proc_macro2::LineColumn;
     use rstest::*;
-    use std::io::Write;
+    use std::{collections::HashMap, io::Write};
     use tempfile::tempdir;
 
     const FILE_CONTENT_STRING: &str = "use std::io::Write;
@@ -136,7 +144,8 @@ mod tests {
                     unsafe_: 0
                 }
             },
-            forbids_unsafe: false
+            forbids_unsafe: false,
+            extern_calls: HashMap::new()
         }
         ),
         case(
@@ -164,7 +173,8 @@ mod tests {
                         unsafe_: 0
                     }
                 },
-                forbids_unsafe: false
+                forbids_unsafe: false,
+                extern_calls: HashMap::new()
             }
         )
     )]
@@ -178,8 +188,11 @@ mod tests {
 
         writeln!(file, "{}", FILE_CONTENT_STRING).unwrap();
 
-        let unsafe_in_file_result =
-            find_unsafe_in_file(&lib_file_path, input_include_tests);
+        let unsafe_in_file_result = find_unsafe_in_file(
+            &lib_file_path,
+            input_include_tests,
+            &RsFileExternDefinitions::new(),
+        );
 
         assert!(unsafe_in_file_result.is_ok());
 
@@ -216,7 +229,8 @@ mod tests {
                         unsafe_: 0
                     }
                 },
-                forbids_unsafe: false
+                forbids_unsafe: false,
+                extern_calls: HashMap::new()
             }
         ),
         case(
@@ -244,7 +258,8 @@ mod tests {
                         unsafe_: 0
                     }
                 },
-                forbids_unsafe: false
+                forbids_unsafe: false,
+                extern_calls: HashMap::new()
             }
         )
     )]
@@ -252,8 +267,12 @@ mod tests {
         input_include_tests: IncludeTests,
         expected_rs_file_metrics: RsFileMetrics,
     ) {
-        let unsafe_in_string_result =
-            find_unsafe_in_string(FILE_CONTENT_STRING, input_include_tests);
+        let unsafe_in_string_result = find_unsafe_in_string(
+            FILE_CONTENT_STRING,
+            input_include_tests,
+            &RsFileExternDefinitions::new(),
+            &PathBuf::from("/test/file_content_string"),
+        );
 
         assert!(unsafe_in_string_result.is_ok());
         let unsafe_in_string = unsafe_in_string_result.unwrap();
@@ -340,25 +359,25 @@ mod tests {
             &PathBuf::from("/test/extern_file_content_string"),
             IncludeRustFunctions::No,
             RsFileExternDefinitions::from([
-            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 6, column: 7 } }),
-            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 10, column: 7 } }),
-            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 14, column: 7 } }),
-            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 15, column: 7 } }),
-            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 18, column: 7 } }),
-            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 54, column: 11 } }),
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7  }),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7  }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: 14, column: 7  }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: 15, column: 7  }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7 }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: 54, column: 11  }),
         ])),
         case(
             &PathBuf::from("/test/extern_file_content_string"),
             IncludeRustFunctions::Yes,
             RsFileExternDefinitions::from([
-            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 6, column: 7 } }),
-            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 10, column: 7 } }),
-            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 14, column: 7 } }),
-            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 15, column: 7 } }),
-            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 18, column: 7 } }),
-            (String::from("hello_from_rust"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 23, column: 18 } }),
-            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 54, column: 11 } }),
-            (String::from("bar"), ExternDefinition { file: file_path.clone(), line: LineColumn{ line: 59, column: 22 } }),
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7 }),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7  }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(),  line: 14, column: 7  }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(),  line: 15, column: 7  }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7 }),
+            (String::from("hello_from_rust"), ExternDefinition { file: file_path.clone(),  line: 23, column: 18  }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(),  line: 54, column: 11  }),
+            (String::from("bar"), ExternDefinition { file: file_path.clone(),  line: 59, column: 22  }),
         ]))
     )]
     fn find_extern_in_string_test(

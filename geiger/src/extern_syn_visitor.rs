@@ -1,12 +1,13 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use proc_macro2::LineColumn;
 use syn::visit;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Hash, Debug, Default, Eq, PartialEq)]
 pub struct ExternDefinition {
     pub file: PathBuf,
-    pub line: LineColumn,
+    pub line: usize,
+    pub column: usize,
+    pub name: String,
 }
 
 pub type RsFileExternDefinitions = HashMap<String, ExternDefinition>;
@@ -60,7 +61,9 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
                     i.sig.ident.to_string(),
                     ExternDefinition {
                         file: self.file.clone(),
-                        line: i.sig.ident.span().start(),
+                        line: i.sig.ident.span().start().line,
+                        column: i.sig.ident.span().start().column,
+                        name: i.sig.ident.to_string(),
                     },
                 );
             }
@@ -76,16 +79,13 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
 
     //This will visit the functions coming from C, which reside in the extern "C" {} block.
     fn visit_foreign_item_fn(&mut self, i: &'ast syn::ForeignItemFn) {
-        println!(
-            "{} {:?}",
-            i.sig.ident.to_string(),
-            i.sig.ident.span().start()
-        );
         self.extern_definitions.insert(
             i.sig.ident.to_string(),
             ExternDefinition {
                 file: self.file.clone(),
-                line: i.sig.ident.span().start(),
+                line: i.sig.ident.span().start().line,
+                column: i.sig.ident.span().start().column,
+                name: i.sig.ident.to_string(),
             },
         );
 

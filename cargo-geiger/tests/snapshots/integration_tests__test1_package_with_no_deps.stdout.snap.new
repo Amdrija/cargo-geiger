@@ -3,7 +3,9 @@ source: cargo-geiger/tests/integration_tests.rs
 assertion_line: 50
 expression: stdout
 ---
-PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmpjOsMbF/test1_package_with_no_deps)" } {}
+PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmpgKLwBs/test1_package_with_no_deps)" } {}
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(289..292) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: io, span: bytes(294..296) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: stdout, span: bytes(298..304) }, arguments: None }] } }), paren_token: Paren, args: [] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(334..337) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: str, span: bytes(339..342) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: from_utf8_unchecked, span: bytes(344..363) }, arguments: None }] } }), paren_token: Paren, args: [Lit(ExprLit { attrs: [], lit: ByteStr(LitByteStr { token: b"binarystring" }) })] }
 
 Metric output format: x/y
     x = unsafe code used by the build
@@ -16,8 +18,8 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-1/1        2/2          0/0    0/0     0/0      !  test1_package_with_no_deps 0.1.0
+1/1        1/1          0/0    0/0     0/0      !  test1_package_with_no_deps 0.1.0
 
-1/1        2/2          0/0    0/0     0/0    
+1/1        1/1          0/0    0/0     0/0    
 
 

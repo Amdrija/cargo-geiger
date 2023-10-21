@@ -317,7 +317,10 @@ mod table_tests {
             create_rs_file_metrics_wrapper(false, false),
         );
 
-        let package_metrics = PackageMetrics { rs_path_to_metrics };
+        let package_metrics = PackageMetrics {
+            rs_path_to_metrics,
+            extern_calls: HashMap::new(),
+        };
         let rs_files_used: HashSet<PathBuf> = [
             Path::new("package_1_path").to_path_buf(),
             Path::new("package_3_path").to_path_buf(),
@@ -375,6 +378,7 @@ mod table_tests {
             metrics: RsFileMetrics {
                 counters: create_counter_block(),
                 forbids_unsafe,
+                extern_calls: HashMap::new(),
             },
             is_crate_entry_point,
         }

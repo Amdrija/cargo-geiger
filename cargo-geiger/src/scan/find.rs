@@ -30,12 +30,26 @@ pub fn find_unsafe(
     mode: ScanMode,
     print_config: &PrintConfig,
 ) -> Result<GeigerContext, CliError> {
+    let extern_context = find_extern(
+        cargo_metadata_parameters,
+        config,
+        ScanMode::Full,
+        print_config,
+    )?;
+
+    // for (package_id, extern_definitions) in
+    //     &extern_context.package_id_to_extern_definitions
+    // {
+    //     println!("PackageId: {:?} {:?}", package_id, extern_definitions);
+    // }
+
     let mut progress = cargo::util::Progress::new("Scanning", config);
     let geiger_context = find_unsafe_in_packages_with_progress(
         print_config.allow_partial_results,
         cargo_metadata_parameters,
         print_config.include_tests,
         mode,
+        &extern_context,
         |progress_count, count| {
             progress.tick(progress_count, count, "find_unsafe_tick")
         },
@@ -71,6 +85,7 @@ fn find_unsafe_in_packages_with_progress<F>(
     cargo_metadata_parameters: &CargoMetadataParameters,
     include_tests: IncludeTests,
     mode: ScanMode,
+    extern_context: &ExternContext,
     mut progress_fn: F,
 ) -> GeigerContext
 where
@@ -88,6 +103,7 @@ where
                 cargo_metadata_parameters,
                 include_tests,
                 mode,
+                extern_context,
                 Some(on_processed),
             ))
         });
@@ -137,6 +153,7 @@ fn find_unsafe_in_packages<F>(
     cargo_metadata_parameters: &CargoMetadataParameters,
     include_tests: IncludeTests,
     mode: ScanMode,
+    extern_context: &ExternContext,
     on_processed: Option<F>,
 ) -> GeigerContext
 where
@@ -163,7 +180,14 @@ where
             {
                 return;
             }
-            match find_unsafe_in_file(&path_buf, include_tests) {
+            match find_unsafe_in_file(
+                &path_buf,
+                include_tests,
+                extern_context
+                    .package_id_to_extern_definitions
+                    .get(&package_id)
+                    .unwrap(),
+            ) {
                 Err(error) => {
                     handle_unsafe_in_file_error(
                         allow_partial_results,
@@ -373,6 +397,14 @@ fn update_package_id_to_metrics_with_rs_file_metrics(
         .rs_path_to_metrics
         .entry(path_buf)
         .or_insert_with(RsFileMetricsWrapper::default);
+    for (def, call) in &rs_file_metrics.extern_calls {
+        package_metrics
+            .extern_calls
+            .entry(def.clone())
+            .or_default()
+            .append(&mut call.clone());
+    }
+
     wrapper.metrics = rs_file_metrics;
     wrapper.is_crate_entry_point = is_entry_point;
 }
@@ -511,8 +543,12 @@ mod find_tests {
         let rs_file = rs_files_in_package.pop().unwrap();
         let (_, path_buf) = into_is_entry_point_and_path_buf(rs_file);
 
-        let rs_file_metrics =
-            find_unsafe_in_file(path_buf.as_path(), IncludeTests::Yes).unwrap();
+        let rs_file_metrics = find_unsafe_in_file(
+            path_buf.as_path(),
+            IncludeTests::Yes,
+            &RsFileExternDefinitions::new(),
+        )
+        .unwrap();
 
         update_package_id_to_metrics_with_rs_file_metrics(
             input_is_entry_point,

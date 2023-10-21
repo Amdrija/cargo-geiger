@@ -3,9 +3,17 @@ source: cargo-geiger/tests/integration_tests.rs
 assertion_line: 50
 expression: stdout
 ---
+PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmp2yJgxP/test1_package_with_no_deps)" } {}
+PackageId: PackageId { repr: "test2_package_with_shallow_deps 0.1.0 (path+file:///tmp/.tmp2yJgxP/test2_package_with_shallow_deps)" } {}
 PackageId: PackageId { repr: "ref_slice 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" } {}
-PackageId: PackageId { repr: "test2_package_with_shallow_deps 0.1.0 (path+file:///tmp/.tmpwVNB1b/test2_package_with_shallow_deps)" } {}
-PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmpwVNB1b/test1_package_with_no_deps)" } {}
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(289..292) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: io, span: bytes(294..296) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: stdout, span: bytes(298..304) }, arguments: None }] } }), paren_token: Paren, args: [] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(334..337) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: str, span: bytes(339..342) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: from_utf8_unchecked, span: bytes(344..363) }, arguments: None }] } }), paren_token: Paren, args: [Lit(ExprLit { attrs: [], lit: ByteStr(LitByteStr { token: b"binarystring" }) })] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: test1_package_with_no_deps, span: bytes(51..77) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: f, span: bytes(79..80) }, arguments: None }] } }), paren_token: Paren, args: [] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: test1_package_with_no_deps, span: bytes(88..114) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: g, span: bytes(116..117) }, arguments: None }] } }), paren_token: Paren, args: [] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: core, span: bytes(2279..2283) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: slice, span: bytes(2285..2290) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: from_raw_parts, span: bytes(2292..2306) }, arguments: None }] } }), paren_token: Paren, args: [Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: s, span: bytes(2307..2308) }, arguments: None }] } }), Comma, Lit(ExprLit { attrs: [], lit: Int(LitInt { token: 1 }) })] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: core, span: bytes(2468..2472) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: slice, span: bytes(2474..2479) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: from_raw_parts_mut, span: bytes(2481..2499) }, arguments: None }] } }), paren_token: Paren, args: [Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: s, span: bytes(2500..2501) }, arguments: None }] } }), Comma, Lit(ExprLit { attrs: [], lit: Int(LitInt { token: 1 }) })] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: ref_slice, span: bytes(2693..2702) }, arguments: None }] } }), paren_token: Paren, args: [Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: val, span: bytes(2703..2706) }, arguments: None }] } })] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: mut_ref_slice, span: bytes(2933..2946) }, arguments: None }] } }), paren_token: Paren, args: [Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: val, span: bytes(2947..2950) }, arguments: None }] } })] }
 
 Metric output format: x/y
     x = unsafe code used by the build
@@ -18,10 +26,10 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-1/1        4/4          0/0    0/0     0/0      !  test2_package_with_shallow_deps 0.1.0
-0/0        2/2          0/0    0/0     0/0      !  ├── ref_slice 1.1.1
-1/1        2/2          0/0    0/0     0/0      !  └── test1_package_with_no_deps 0.1.0
+1/1        2/2          0/0    0/0     0/0      !  test2_package_with_shallow_deps 0.1.0
+0/0        0/0          0/0    0/0     0/0      ?  ├── ref_slice 1.1.1
+1/1        1/1          0/0    0/0     0/0      !  └── test1_package_with_no_deps 0.1.0
 
-2/2        8/8          0/0    0/0     0/0    
+2/2        3/3          0/0    0/0     0/0    
 
 

@@ -11,7 +11,8 @@ use crate::mapping::{
     ToCargoGeigerPackageId,
 };
 
-use geiger::extern_syn_visitor::RsFileExternDefinitions;
+use geiger::extern_syn_visitor::{ExternDefinition, RsFileExternDefinitions};
+use geiger::ExternCall;
 pub use rs_file::RsFileMetricsWrapper;
 
 use default::scan_unsafe;
@@ -68,6 +69,7 @@ pub struct ExternContext {
 pub struct PackageMetrics {
     /// The key is the canonicalized path to the rs source file.
     pub rs_path_to_metrics: HashMap<PathBuf, RsFileMetricsWrapper>,
+    pub extern_calls: HashMap<ExternDefinition, Vec<ExternCall>>,
 }
 
 pub enum ScanMode {
@@ -456,7 +458,10 @@ mod scan_tests {
         let geiger_context = GeigerContext {
             package_id_to_metrics: vec![(
                 package_id,
-                PackageMetrics { rs_path_to_metrics },
+                PackageMetrics {
+                    rs_path_to_metrics,
+                    extern_calls: HashMap::new(),
+                },
             )]
             .iter()
             .cloned()
@@ -557,6 +562,7 @@ mod scan_tests {
                 .into_iter()
                 .map(|(p, m)| (p.into(), m))
                 .collect(),
+            extern_calls: HashMap::new(),
         }
     }
 

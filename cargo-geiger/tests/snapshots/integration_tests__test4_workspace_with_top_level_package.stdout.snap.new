@@ -3,9 +3,11 @@ source: cargo-geiger/tests/integration_tests.rs
 assertion_line: 50
 expression: stdout
 ---
-PackageId: PackageId { repr: "test4_workspace_with_top_level_package 0.1.0 (path+file:///tmp/.tmp4DBG5N/test4_workspace_with_top_level_package)" } {}
-PackageId: PackageId { repr: "member1 0.1.0 (path+file:///tmp/.tmp4DBG5N/test4_workspace_with_top_level_package/member1)" } {}
-PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmp4DBG5N/test1_package_with_no_deps)" } {}
+PackageId: PackageId { repr: "test4_workspace_with_top_level_package 0.1.0 (path+file:///tmp/.tmp9R58R5/test4_workspace_with_top_level_package)" } {}
+PackageId: PackageId { repr: "member1 0.1.0 (path+file:///tmp/.tmp9R58R5/test4_workspace_with_top_level_package/member1)" } {}
+PackageId: PackageId { repr: "test1_package_with_no_deps 0.1.0 (path+file:///tmp/.tmp9R58R5/test1_package_with_no_deps)" } {}
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(180..183) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: io, span: bytes(185..187) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: stdout, span: bytes(189..195) }, arguments: None }] } }), paren_token: Paren, args: [] }
+ExprCall { attrs: [], func: Path(ExprPath { attrs: [], qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { sym: std, span: bytes(225..228) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: str, span: bytes(230..233) }, arguments: None }, Colon2, PathSegment { ident: Ident { sym: from_utf8_unchecked, span: bytes(235..254) }, arguments: None }] } }), paren_token: Paren, args: [Lit(ExprLit { attrs: [], lit: ByteStr(LitByteStr { token: b"binarystring" }) })] }
 
 Metric output format: x/y
     x = unsafe code used by the build
@@ -19,8 +21,8 @@ Symbols:
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
 0/0        0/1          0/0    0/0     0/0      ?  test4_workspace_with_top_level_package 0.1.0
-1/1        2/2          0/0    0/0     0/0      !  └── test1_package_with_no_deps 0.1.0
+1/1        1/1          0/0    0/0     0/0      !  └── test1_package_with_no_deps 0.1.0
 
-1/1        2/3          0/0    0/0     0/0    
+1/1        1/2          0/0    0/0     0/0    
 
 

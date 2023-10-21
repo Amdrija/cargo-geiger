@@ -1,3 +1,8 @@
+#![allow(dead_code)]
+use std::path::PathBuf;
+
+use crate::{extern_syn_visitor::RsFileExternDefinitions, ExternCall};
+
 use super::{
     file_forbids_unsafe, has_unsafe_attributes, is_test_fn, is_test_mod,
     IncludeTests, RsFileMetrics,
@@ -5,7 +10,7 @@ use super::{
 
 use syn::{visit, Expr, ImplItemMethod, ItemFn, ItemImpl, ItemMod, ItemTrait};
 
-pub struct GeigerSynVisitor {
+pub struct GeigerSynVisitor<'a> {
     /// Count unsafe usage inside tests
     include_tests: IncludeTests,
 
@@ -20,14 +25,24 @@ pub struct GeigerSynVisitor {
     /// This is needed since unsafe scopes can be nested and we need to know
     /// when we leave the outmost unsafe scope and get back into a safe scope.
     unsafe_scopes: u32,
+
+    extern_definitions: &'a RsFileExternDefinitions,
+
+    file: &'a PathBuf,
 }
 
-impl GeigerSynVisitor {
-    pub fn new(include_tests: IncludeTests) -> Self {
+impl<'a> GeigerSynVisitor<'a> {
+    pub fn new(
+        include_tests: IncludeTests,
+        extern_definitions: &'a RsFileExternDefinitions,
+        file: &'a PathBuf,
+    ) -> Self {
         GeigerSynVisitor {
             include_tests,
             metrics: Default::default(),
             unsafe_scopes: 0,
+            extern_definitions,
+            file,
         }
     }
 
@@ -40,7 +55,7 @@ impl GeigerSynVisitor {
     }
 }
 
-impl<'ast> visit::Visit<'ast> for GeigerSynVisitor {
+impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
     fn visit_file(&mut self, i: &'ast syn::File) {
         self.metrics.forbids_unsafe = file_forbids_unsafe(i);
         syn::visit::visit_file(self, i);
@@ -57,6 +72,7 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor {
             self.enter_unsafe_scope()
         }
         self.metrics.counters.functions.count(unsafe_fn);
+
         visit::visit_item_fn(self, item_fn);
         if item_fn.sig.unsafety.is_some() {
             self.exit_unsafe_scope()
@@ -74,6 +90,32 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor {
             Expr::Path(_) | Expr::Lit(_) => {
                 // Do not count. The expression `f(x)` should count as one
                 // expression, not three.
+            }
+            Expr::Call(call) => {
+                if let Expr::Path(path) = call.func.as_ref() {
+                    if let Some(ident) = path.path.get_ident() {
+                        if self
+                            .extern_definitions
+                            .contains_key(&ident.to_string())
+                        {
+                            let definition = self
+                                .extern_definitions
+                                .get(&ident.to_string())
+                                .unwrap();
+
+                            self.metrics
+                                .extern_calls
+                                .entry(definition.clone())
+                                .or_default()
+                                .push(ExternCall {
+                                    extern_definition: definition.clone(),
+                                    file: self.file.clone(),
+                                    line: ident.span().start().line,
+                                    column: ident.span().start().column,
+                                });
+                        }
+                    }
+                }
             }
             other => {
                 // TODO: Print something pretty here or gather the data for later

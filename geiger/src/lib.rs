@@ -8,12 +8,14 @@
 #![deny(warnings)]
 
 pub mod find;
+use extern_syn_visitor::ExternDefinition;
 pub use find::*; // preserve APIs
 
 pub mod extern_syn_visitor;
 mod geiger_syn_visitor;
 
 use cargo_geiger_serde::CounterBlock;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::io;
@@ -27,6 +29,14 @@ pub enum IncludeTests {
     No,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ExternCall {
+    pub extern_definition: ExternDefinition,
+    pub file: PathBuf,
+    pub line: usize,
+    pub column: usize,
+}
+
 /// Scan result for a single `.rs` file.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RsFileMetrics {
@@ -35,6 +45,8 @@ pub struct RsFileMetrics {
 
     /// This file is decorated with `#![forbid(unsafe_code)]`
     pub forbids_unsafe: bool,
+
+    pub extern_calls: HashMap<ExternDefinition, Vec<ExternCall>>,
 }
 
 #[derive(Debug)]
