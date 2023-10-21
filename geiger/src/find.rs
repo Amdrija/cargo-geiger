@@ -10,18 +10,22 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-/// Scan a single file for `unsafe` usage.
-pub fn find_unsafe_in_file(
-    path: &Path,
-    include_tests: IncludeTests,
-) -> Result<RsFileMetrics, ScanFileError> {
+fn load_file(path: &Path) -> Result<String, ScanFileError> {
     let mut file = File::open(path)
         .map_err(|e| ScanFileError::Io(e, path.to_path_buf()))?;
     let mut src = vec![];
     file.read_to_end(&mut src)
         .map_err(|e| ScanFileError::Io(e, path.to_path_buf()))?;
-    let src = String::from_utf8(src)
-        .map_err(|e| ScanFileError::Utf8(e, path.to_path_buf()))?;
+    String::from_utf8(src)
+        .map_err(|e| ScanFileError::Utf8(e, path.to_path_buf()))
+}
+
+/// Scan a single file for `unsafe` usage.
+pub fn find_unsafe_in_file(
+    path: &Path,
+    include_tests: IncludeTests,
+) -> Result<RsFileMetrics, ScanFileError> {
+    let src = load_file(path)?;
     find_unsafe_in_string(&src, include_tests)
         .map_err(|e| ScanFileError::Syn(e, path.to_path_buf()))
 }
@@ -35,6 +39,15 @@ pub fn find_unsafe_in_string(
     let mut vis = GeigerSynVisitor::new(include_tests);
     vis.visit_file(&syntax);
     Ok(vis.metrics)
+}
+
+pub fn find_extern_in_file(
+    path: &Path,
+    include_rust_fns: IncludeRustFunctions,
+) -> Result<RsFileExternDefinitions, ScanFileError> {
+    let src = load_file(path)?;
+    find_extern_in_string(&path.to_path_buf(), &src, include_rust_fns)
+        .map_err(|e| ScanFileError::Syn(e, path.to_path_buf()))
 }
 
 pub fn find_extern_in_string(
