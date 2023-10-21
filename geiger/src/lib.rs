@@ -11,6 +11,7 @@ pub mod find;
 pub use find::*; // preserve APIs
 
 mod geiger_syn_visitor;
+mod extern_syn_visitor;
 
 use cargo_geiger_serde::CounterBlock;
 use std::error::Error;
