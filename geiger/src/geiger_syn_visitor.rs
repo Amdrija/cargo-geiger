@@ -116,6 +116,8 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
                         }
                     }
                 }
+                self.metrics.counters.exprs.count(self.unsafe_scopes > 0);
+                visit::visit_expr_call(self, call);
             }
             other => {
                 // TODO: Print something pretty here or gather the data for later
