@@ -117,7 +117,11 @@ fn scan(
                 for (def, calls) in metrics.extern_calls.iter() {
                     print!("\tFUNCTION: {}", def.name);
                     print!(" file:{}", def.file.to_str().unwrap_or_default());
-                    println!(" line:{} column:{}", def.line, def.column);
+                    print!(" line:{} column:{}", def.line, def.column);
+                    println!(
+                        " contains_pointer_argument: {}",
+                        def.contains_pointer_argument
+                    );
 
                     println!("CALLS:");
                     for call in calls {

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use syn::visit;
+use syn::{visit, Signature};
 
 #[derive(Clone, Hash, Debug, Default, Eq, PartialEq)]
 pub struct ExternDefinition {
@@ -8,6 +8,7 @@ pub struct ExternDefinition {
     pub line: usize,
     pub column: usize,
     pub name: String,
+    pub contains_pointer_argument: bool,
 }
 
 pub type RsFileExternDefinitions = HashMap<String, ExternDefinition>;
@@ -43,6 +44,20 @@ impl<'a> ExternSynVisitor<'a> {
     }
 }
 
+fn check_arguments_contain_pointer(signature: &Signature) -> bool {
+    let mut ptr_argument = false;
+    for arg in &signature.inputs {
+        if let syn::FnArg::Typed(arg_type) = arg {
+            if let syn::Type::Ptr(_) = arg_type.ty.as_ref() {
+                ptr_argument = true;
+                break;
+            }
+        }
+    }
+
+    return ptr_argument;
+}
+
 impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
     fn visit_file(&mut self, i: &'ast syn::File) {
         syn::visit::visit_file(self, i);
@@ -64,6 +79,8 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
                         line: i.sig.ident.span().start().line,
                         column: i.sig.ident.span().start().column,
                         name: i.sig.ident.to_string(),
+                        contains_pointer_argument:
+                            check_arguments_contain_pointer(&i.sig),
                     },
                 );
             }
@@ -86,6 +103,9 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
                 line: i.sig.ident.span().start().line,
                 column: i.sig.ident.span().start().column,
                 name: i.sig.ident.to_string(),
+                contains_pointer_argument: check_arguments_contain_pointer(
+                    &i.sig,
+                ),
             },
         );
 
