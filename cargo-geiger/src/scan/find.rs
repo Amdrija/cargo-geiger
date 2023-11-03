@@ -183,10 +183,7 @@ where
             match find_unsafe_in_file(
                 &path_buf,
                 include_tests,
-                extern_context
-                    .package_id_to_extern_definitions
-                    .get(&package_id)
-                    .unwrap(),
+                &extern_context.extern_definitions,
             ) {
                 Err(error) => {
                     handle_unsafe_in_file_error(
@@ -242,7 +239,7 @@ fn find_extern_in_packages<F>(
 where
     F: Fn(usize, usize) + Send + Sync,
 {
-    let package_id_to_extern_definitions = Arc::new(Mutex::new(HashMap::new()));
+    let extern_definitions = Arc::new(Mutex::new(HashMap::new()));
     let ignored = Arc::new(Mutex::new(HashSet::new()));
     let packages = cargo_metadata_parameters.metadata.packages.to_vec();
     let package_code_files: Vec<_> =
@@ -250,8 +247,8 @@ where
     let package_code_file_count = package_code_files.len();
     let processed_count = AtomicUsize::new(0);
     package_code_files.into_par_iter().for_each_with(
-        (package_id_to_extern_definitions.clone(), ignored.clone()),
-        |(package_id_to_metrics, ignored), (package_id, rs_code_file)| {
+        (extern_definitions.clone(), ignored.clone()),
+        |(package_id_to_metrics, ignored), (_, rs_code_file)| {
             if let RsFile::CustomBuildRoot(path_buf) = rs_code_file {
                 let mut ignored = ignored.lock().unwrap();
                 ignored.insert(path_buf);
@@ -272,9 +269,9 @@ where
                     );
                 }
                 Ok(rs_file_extern_definitions) => {
-                    let package_id_to_extern_definitions =
+                    let extern_definitions =
                         &mut package_id_to_metrics.lock().unwrap();
-                    update_package_id_to_extern_definitions_with_rs_file_extern_definitions(package_id, package_id_to_extern_definitions,  rs_file_extern_definitions);
+                    update_package_id_to_extern_definitions_with_rs_file_extern_definitions(extern_definitions,  rs_file_extern_definitions);
                 }
             }
 
@@ -287,20 +284,18 @@ where
         },
     );
 
-    let cargo_core_package_metrics: HashMap<
-        PackageId,
-        RsFileExternDefinitions,
-    > = package_id_to_extern_definitions
-        .lock()
-        .unwrap()
-        .iter()
-        .map(|(cargo_metadata_package_id, package_metrics)| {
-            (cargo_metadata_package_id.clone(), package_metrics.clone())
-        })
-        .collect::<HashMap<PackageId, RsFileExternDefinitions>>();
+    let cargo_core_package_metrics: RsFileExternDefinitions =
+        extern_definitions
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(cargo_metadata_package_id, package_metrics)| {
+                (cargo_metadata_package_id.clone(), package_metrics.clone())
+            })
+            .collect::<RsFileExternDefinitions>();
 
     ExternContext {
-        package_id_to_extern_definitions: cargo_core_package_metrics,
+        extern_definitions: cargo_core_package_metrics,
         ignored_paths: Arc::try_unwrap(ignored).unwrap().into_inner().unwrap(),
     }
 }
@@ -410,23 +405,17 @@ fn update_package_id_to_metrics_with_rs_file_metrics(
 }
 
 fn update_package_id_to_extern_definitions_with_rs_file_extern_definitions(
-    package_id: PackageId,
-    package_id_to_extern_definitions: &mut HashMap<
-        PackageId,
-        RsFileExternDefinitions,
-    >,
+    extern_definitions: &mut RsFileExternDefinitions,
     rs_file_extern_definitions: RsFileExternDefinitions,
 ) {
-    match package_id_to_extern_definitions.entry(package_id) {
-        std::collections::hash_map::Entry::Occupied(mut occupied_entry) => {
-            for (fn_name, extern_definition) in rs_file_extern_definitions {
-                occupied_entry.get_mut().insert(fn_name, extern_definition);
+    for (fn_name, definition) in rs_file_extern_definitions {
+        match extern_definitions.entry(fn_name) {
+            std::collections::hash_map::Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert(definition);
             }
-        }
-        std::collections::hash_map::Entry::Vacant(vacant_entry) => {
-            vacant_entry.insert(rs_file_extern_definitions);
-        }
-    };
+            std::collections::hash_map::Entry::Occupied(_) => {}
+        };
+    }
 }
 
 #[cfg(test)]

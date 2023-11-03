@@ -60,8 +60,7 @@ pub struct GeigerContext {
 
 #[derive(Default)]
 pub struct ExternContext {
-    pub package_id_to_extern_definitions:
-        HashMap<PackageId, RsFileExternDefinitions>,
+    pub extern_definitions: RsFileExternDefinitions,
     pub ignored_paths: HashSet<PathBuf>,
 }
 

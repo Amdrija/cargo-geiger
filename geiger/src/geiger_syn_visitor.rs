@@ -94,6 +94,7 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
             Expr::Call(call) => {
                 if let Expr::Path(path) = call.func.as_ref() {
                     if let Some(ident) = path.path.get_ident() {
+                        //TODO: Check why it is not finding strcpy in the hashmap
                         if self
                             .extern_definitions
                             .contains_key(&ident.to_string())
