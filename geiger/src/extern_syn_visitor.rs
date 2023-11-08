@@ -1,6 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use syn::{visit, Signature};
+use syn::{
+    punctuated::Punctuated, spanned::Spanned, token::Comma, visit, FnArg,
+    Signature,
+};
 
 #[derive(Clone, Hash, Debug, Default, Eq, PartialEq)]
 pub struct ExternDefinition {
@@ -9,6 +12,62 @@ pub struct ExternDefinition {
     pub column: usize,
     pub name: String,
     pub contains_pointer_argument: bool,
+    pub args: Vec<String>,
+}
+
+fn convert_fn_args_to_vec_type(args: &Punctuated<FnArg, Comma>) -> Vec<String> {
+    return args
+        .into_iter()
+        .filter_map(|arg| match arg {
+            FnArg::Receiver(_) => None,
+            FnArg::Typed(pat_type) => Some(match pat_type.ty.as_ref() {
+                syn::Type::Array(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::BareFn(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Group(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::ImplTrait(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Infer(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Macro(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Never(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Paren(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Path(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Ptr(t) => t.span().source_text().unwrap_or_default(),
+                syn::Type::Reference(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Slice(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::TraitObject(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Tuple(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                syn::Type::Verbatim(t) => {
+                    t.span().source_text().unwrap_or_default()
+                }
+                _ => todo!(),
+            }),
+        })
+        .collect();
 }
 
 pub type RsFileExternDefinitions = HashMap<String, ExternDefinition>;
@@ -81,6 +140,7 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
                         name: i.sig.ident.to_string(),
                         contains_pointer_argument:
                             check_arguments_contain_pointer(&i.sig),
+                        args: convert_fn_args_to_vec_type(&i.sig.inputs),
                     },
                 );
             }
@@ -106,6 +166,7 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
                 contains_pointer_argument: check_arguments_contain_pointer(
                     &i.sig,
                 ),
+                args: convert_fn_args_to_vec_type(&i.sig.inputs),
             },
         );
 

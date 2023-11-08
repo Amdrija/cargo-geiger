@@ -359,25 +359,25 @@ mod tests {
             &PathBuf::from("/test/extern_file_content_string"),
             IncludeRustFunctions::No,
             RsFileExternDefinitions::from([
-            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name:  String::from("snappy_compress"), contains_pointer_argument: true}),
-            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true  }),
-            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false  }),
-            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true  }),
-            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true }),
-            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: 54, column: 11, name: String::from("foo"), contains_pointer_argument: true  }),
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name:  String::from("snappy_compress"), contains_pointer_argument: true, args: vec![]}),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true, args: vec![]  }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false, args: vec![]  }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true, args: vec![]  }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true, args: vec![] }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: 54, column: 11, name: String::from("foo"), contains_pointer_argument: false, args: vec![]  }),
         ])),
         case(
             &PathBuf::from("/test/extern_file_content_string"),
             IncludeRustFunctions::Yes,
             RsFileExternDefinitions::from([
-            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name: String::from("snappy_compress"), contains_pointer_argument: true }),
-            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true  }),
-            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(),  line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false  }),
-            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(),  line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true  }),
-            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true }),
-            (String::from("hello_from_rust"), ExternDefinition { file: file_path.clone(),  line: 23, column: 18, name: String::from("hello_from_rust"), contains_pointer_argument: false  }),
-            (String::from("foo"), ExternDefinition { file: file_path.clone(),  line: 54, column: 11, name: String::from("foo"), contains_pointer_argument: false  }),
-            (String::from("bar"), ExternDefinition { file: file_path.clone(),  line: 59, column: 22, name: String::from("bar"), contains_pointer_argument: false  }),
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name: String::from("snappy_compress"), contains_pointer_argument: true, args: vec![] }),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true, args: vec![]  }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(),  line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false, args: vec![]  }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(),  line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true, args: vec![]  }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true, args: vec![] }),
+            (String::from("hello_from_rust"), ExternDefinition { file: file_path.clone(),  line: 23, column: 18, name: String::from("hello_from_rust"), contains_pointer_argument: false, args: vec![]  }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(),  line: 54, column: 11, name: String::from("foo"), contains_pointer_argument: false, args: vec![]  }),
+            (String::from("bar"), ExternDefinition { file: file_path.clone(),  line: 59, column: 22, name: String::from("bar"), contains_pointer_argument: false, args: vec![]  }),
         ]))
     )]
     fn find_extern_in_string_test(
@@ -409,6 +409,20 @@ mod tests {
                 expected_rs_file_extern_definitions.get(name).unwrap().line
                     == extern_definition.line
             );
+            assert!(
+                expected_rs_file_extern_definitions
+                    .get(name)
+                    .unwrap()
+                    .column
+                    == extern_definition.column
+            );
+            assert!(
+                expected_rs_file_extern_definitions
+                    .get(name)
+                    .unwrap()
+                    .contains_pointer_argument
+                    == extern_definition.contains_pointer_argument
+            );
         }
 
         for (name, extern_definition) in &expected_rs_file_extern_definitions {
@@ -419,6 +433,15 @@ mod tests {
                 ) == file_path
             );
             assert!(result.get(name).unwrap().line == extern_definition.line);
+            assert!(
+                result.get(name).unwrap().column == extern_definition.column
+            );
+            assert!(
+                result.get(name).unwrap().contains_pointer_argument
+                    == extern_definition.contains_pointer_argument
+            );
         }
+
+        //TODO: The tests dont check the function arguments, as this is extremely cumbersome
     }
 }

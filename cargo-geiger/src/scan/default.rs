@@ -118,10 +118,11 @@ fn scan(
                     print!("\tFUNCTION: {}", def.name);
                     print!(" file:{}", def.file.to_str().unwrap_or_default());
                     print!(" line:{} column:{}", def.line, def.column);
-                    println!(
+                    print!(
                         " contains_pointer_argument: {}",
                         def.contains_pointer_argument
                     );
+                    println!(" args: {:?}", def.args);
 
                     println!("CALLS:");
                     for call in calls {
