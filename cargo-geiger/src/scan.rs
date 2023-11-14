@@ -1,4 +1,4 @@
-mod default;
+pub mod default;
 mod find;
 mod forbid;
 mod rs_file;
@@ -157,9 +157,9 @@ pub fn unsafe_stats(
     }
 }
 
-struct ScanDetails {
+pub struct ScanDetails {
     rs_files_used: HashSet<PathBuf>,
-    geiger_context: GeigerContext,
+    pub geiger_context: GeigerContext,
 }
 
 fn construct_rs_files_used_lines(

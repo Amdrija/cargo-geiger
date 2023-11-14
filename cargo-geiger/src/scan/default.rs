@@ -93,7 +93,7 @@ fn build_compile_options<'a>(
     compile_options
 }
 
-fn scan(
+pub fn scan(
     cargo_metadata_parameters: &CargoMetadataParameters,
     scan_parameters: &ScanParameters,
     workspace: &Workspace,
@@ -111,31 +111,6 @@ fn scan(
                 ScanMode::Full,
                 scan_parameters.print_config,
             )?;
-
-            for (id, metrics) in geiger_context.package_id_to_metrics.iter() {
-                println!("Package ID: {}", id.to_string());
-                for (def, calls) in metrics.extern_calls.iter() {
-                    print!("\tFUNCTION: {}", def.name);
-                    print!(" file:{}", def.file.to_str().unwrap_or_default());
-                    print!(" line:{} column:{}", def.line, def.column);
-                    print!(
-                        " contains_pointer_argument: {}",
-                        def.contains_pointer_argument
-                    );
-                    println!(" args: {:?}", def.args);
-
-                    println!("CALLS:");
-                    for call in calls {
-                        print!(
-                            "\t\tfile:{} ",
-                            call.file.to_str().unwrap_or_default()
-                        );
-                        println!("line:{} column:{}", call.line, call.column);
-                        println!("---------");
-                    }
-                }
-                println!("*****************************************");
-            }
 
             Ok(ScanDetails {
                 rs_files_used,

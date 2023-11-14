@@ -990,6 +990,8 @@ dependencies = [
  "cargo-geiger-serde",
  "proc-macro2",
  "rstest",
+ "serde",
+ "serde_json",
  "syn 1.0.109",
  "tempfile",
 ]

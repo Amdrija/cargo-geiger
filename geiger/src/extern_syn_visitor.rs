@@ -1,11 +1,12 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use serde::Serialize;
 use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Comma, visit, FnArg,
     Signature,
 };
 
-#[derive(Clone, Hash, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Hash, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ExternDefinition {
     pub file: PathBuf,
     pub line: usize,

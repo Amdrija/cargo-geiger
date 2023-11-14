@@ -12,18 +12,27 @@ extern crate petgraph;
 extern crate strum;
 extern crate strum_macros;
 
-use cargo_geiger::args::{Args, HELP};
-use cargo_geiger::cli::{get_cargo_metadata, get_krates, get_workspace};
-use cargo_geiger::graph::build_graph;
-use cargo_geiger::mapping::{CargoMetadataParameters, QueryResolve};
-use cargo_geiger::readme::create_or_replace_section_in_readme;
-use cargo_geiger::scan::{scan, FoundWarningsError, ScanResult};
-
 use cargo::core::shell::Shell;
 use cargo::util::important_paths;
 use cargo::{CliError, CliResult, Config};
+use cargo_geiger::args::{Args, HELP};
+use cargo_geiger::cli::{get_cargo_metadata, get_krates, get_workspace};
+use cargo_geiger::format::print_config::PrintConfig;
+use cargo_geiger::graph::build_graph;
+use cargo_geiger::mapping::{CargoMetadataParameters, QueryResolve};
+use cargo_geiger::scan::ScanParameters;
+use geiger::extern_syn_visitor::ExternDefinition;
+use geiger::ExternCall;
+use serde::Serialize;
 
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
+
+#[derive(Serialize)]
+struct ExternDefinitionPrint<'a> {
+    pub package_id: &'a cargo_metadata::PackageId,
+    pub extern_definition: &'a ExternDefinition,
+    pub extern_calls: &'a Vec<ExternCall>,
+}
 
 fn cli_result_main(args: &Args) -> CliResult {
     if args.version {
@@ -67,7 +76,7 @@ fn cli_result_main(args: &Args) -> CliResult {
 
     let global_rustc = config.load_global_rustc(Some(&workspace))?;
 
-    let graph = build_graph(
+    let _ = build_graph(
         args,
         &cargo_metadata_parameters,
         &global_rustc.host,
@@ -75,7 +84,7 @@ fn cli_result_main(args: &Args) -> CliResult {
         cargo_metadata_root_package_id.clone(),
     )?;
 
-    let query_resolve_root_package_id = args.package.as_ref().map_or(
+    let _ = args.package.as_ref().map_or(
         cargo_metadata_root_package_id.clone(),
         |package_query| {
             krates
@@ -84,35 +93,39 @@ fn cli_result_main(args: &Args) -> CliResult {
         },
     );
 
-    let ScanResult {
-        scan_output_lines,
-        warning_count,
-    } = scan(
+    let print_config = PrintConfig::new(&args)?;
+    let scan_parameters = ScanParameters {
         args,
+        config: &config,
+        print_config: &print_config,
+    };
+    let scan_details = cargo_geiger::scan::default::scan(
         &cargo_metadata_parameters,
-        &config,
-        &graph,
-        query_resolve_root_package_id,
+        &scan_parameters,
         &workspace,
     )?;
 
-    if args.readme_args.update_readme {
-        create_or_replace_section_in_readme(
-            &args.readme_args,
-            &scan_output_lines,
-        )?;
-    } else {
-        for scan_output_line in scan_output_lines {
-            println!("{}", scan_output_line);
+    let mut definitions: Vec<ExternDefinitionPrint> = vec![];
+    for (package_id, metrics) in
+        scan_details.geiger_context.package_id_to_metrics.iter()
+    {
+        for (def, calls) in metrics.extern_calls.iter() {
+            let print_definition = ExternDefinitionPrint {
+                extern_definition: def,
+                extern_calls: calls,
+                package_id: package_id,
+            };
+            definitions.push(print_definition);
         }
     }
 
-    if warning_count > 0 {
-        return Err(CliError::new(
-            anyhow::Error::new(FoundWarningsError { warning_count }),
-            1,
-        ));
-    }
+    println!(
+        "{}",
+        match serde_json::to_string(&definitions) {
+            Ok(str) => str,
+            Err(_) => String::from("error"),
+        }
+    );
 
     Ok(())
 }

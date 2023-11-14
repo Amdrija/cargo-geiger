@@ -15,6 +15,7 @@ pub mod extern_syn_visitor;
 mod geiger_syn_visitor;
 
 use cargo_geiger_serde::CounterBlock;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
@@ -29,7 +30,7 @@ pub enum IncludeTests {
     No,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ExternCall {
     pub extern_definition: ExternDefinition,
     pub file: PathBuf,

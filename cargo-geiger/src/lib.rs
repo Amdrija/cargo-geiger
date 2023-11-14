@@ -21,7 +21,7 @@ pub mod readme;
 pub mod scan;
 
 /// Inner display formatting
-mod format;
+pub mod format;
 /// Tree construction
 mod tree;
 
