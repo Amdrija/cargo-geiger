@@ -2,8 +2,8 @@ use std::{collections::HashMap, path::PathBuf};
 
 use serde::Serialize;
 use syn::{
-    punctuated::Punctuated, spanned::Spanned, token::Comma, visit, FnArg,
-    Signature,
+    punctuated::Punctuated, spanned::Spanned, token::Comma, visit, Abi, FnArg,
+    ItemForeignMod, Signature,
 };
 
 #[derive(Clone, Hash, Debug, Default, Eq, PartialEq, Serialize)]
@@ -89,6 +89,8 @@ pub struct ExternSynVisitor<'a> {
 
     /// The resulting data from a single file scan.
     pub extern_definitions: RsFileExternDefinitions,
+
+    current_abi: Option<Abi>,
 }
 
 impl<'a> ExternSynVisitor<'a> {
@@ -100,7 +102,13 @@ impl<'a> ExternSynVisitor<'a> {
             file,
             include_rust_fns,
             extern_definitions: RsFileExternDefinitions::new(),
+            current_abi: None,
         }
+    }
+
+    pub fn is_not_rust_abi(&self, abi: &Abi) -> bool {
+        return abi.name.is_none()
+            || abi.name.as_ref().unwrap().value() != "Rust";
     }
 }
 
@@ -126,24 +134,21 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
     //This will visit Rust functions which are marked as extern "C" for calling from C
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
         if self.include_rust_fns == IncludeRustFunctions::Yes {
-            if let Some(_) = &i.sig.abi {
-                println!(
-                    "{} {:?}",
-                    i.sig.ident.to_string(),
-                    i.sig.ident.span().start()
-                );
-                self.extern_definitions.insert(
-                    i.sig.ident.to_string(),
-                    ExternDefinition {
-                        file: self.file.clone(),
-                        line: i.sig.ident.span().start().line,
-                        column: i.sig.ident.span().start().column,
-                        name: i.sig.ident.to_string(),
-                        contains_pointer_argument:
-                            check_arguments_contain_pointer(&i.sig),
-                        args: convert_fn_args_to_vec_type(&i.sig.inputs),
-                    },
-                );
+            if let Some(abi) = &i.sig.abi {
+                if self.is_not_rust_abi(abi) {
+                    self.extern_definitions.insert(
+                        i.sig.ident.to_string(),
+                        ExternDefinition {
+                            file: self.file.clone(),
+                            line: i.sig.ident.span().start().line,
+                            column: i.sig.ident.span().start().column,
+                            name: i.sig.ident.to_string(),
+                            contains_pointer_argument:
+                                check_arguments_contain_pointer(&i.sig),
+                            args: convert_fn_args_to_vec_type(&i.sig.inputs),
+                        },
+                    );
+                }
             }
         }
 
@@ -152,24 +157,39 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
 
     //This will visit the extern block itself
     fn visit_abi(&mut self, i: &'ast syn::Abi) {
+        //visit only "C" or nonepecified abis
+        let before = self.current_abi.clone();
+        self.current_abi = Some(i.clone());
         syn::visit::visit_abi(self, i);
+        self.current_abi = before;
+    }
+
+    fn visit_item_foreign_mod(&mut self, i: &'ast ItemForeignMod) {
+        let before = self.current_abi.clone();
+        self.current_abi = Some(i.abi.clone());
+        syn::visit::visit_item_foreign_mod(self, i);
+        self.current_abi = before;
     }
 
     //This will visit the functions coming from C, which reside in the extern "C" {} block.
     fn visit_foreign_item_fn(&mut self, i: &'ast syn::ForeignItemFn) {
-        self.extern_definitions.insert(
-            i.sig.ident.to_string(),
-            ExternDefinition {
-                file: self.file.clone(),
-                line: i.sig.ident.span().start().line,
-                column: i.sig.ident.span().start().column,
-                name: i.sig.ident.to_string(),
-                contains_pointer_argument: check_arguments_contain_pointer(
-                    &i.sig,
-                ),
-                args: convert_fn_args_to_vec_type(&i.sig.inputs),
-            },
-        );
+        if self.current_abi.is_some()
+            && self.is_not_rust_abi(&self.current_abi.as_ref().unwrap())
+        {
+            self.extern_definitions.insert(
+                i.sig.ident.to_string(),
+                ExternDefinition {
+                    file: self.file.clone(),
+                    line: i.sig.ident.span().start().line,
+                    column: i.sig.ident.span().start().column,
+                    name: i.sig.ident.to_string(),
+                    contains_pointer_argument: check_arguments_contain_pointer(
+                        &i.sig,
+                    ),
+                    args: convert_fn_args_to_vec_type(&i.sig.inputs),
+                },
+            );
+        }
 
         syn::visit::visit_foreign_item_fn(self, i)
     }
