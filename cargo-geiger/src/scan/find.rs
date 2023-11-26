@@ -184,6 +184,7 @@ where
                 &path_buf,
                 include_tests,
                 &extern_context.extern_definitions,
+                package_id.to_string().as_str(),
             ) {
                 Err(error) => {
                     handle_unsafe_in_file_error(
@@ -536,6 +537,7 @@ mod find_tests {
             path_buf.as_path(),
             IncludeTests::Yes,
             &RsFileExternDefinitions::new(),
+            package.id.to_string().as_str(),
         )
         .unwrap();
 

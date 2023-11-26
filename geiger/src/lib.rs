@@ -37,6 +37,7 @@ pub struct ExternCall {
     pub line: usize,
     pub column: usize,
     pub calling_function: String,
+    pub package_id: String,
 }
 
 /// Scan result for a single `.rs` file.

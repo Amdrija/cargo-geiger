@@ -24,6 +24,7 @@ pub fn find_unsafe_in_file(
     path: &Path,
     include_tests: IncludeTests,
     extern_definitions: &RsFileExternDefinitions,
+    package_id: &str,
 ) -> Result<RsFileMetrics, ScanFileError> {
     let src = load_file(path)?;
     find_unsafe_in_string(
@@ -31,6 +32,7 @@ pub fn find_unsafe_in_file(
         include_tests,
         extern_definitions,
         &path.to_path_buf(),
+        package_id,
     )
     .map_err(|e| ScanFileError::Syn(e, path.to_path_buf()))
 }
@@ -40,11 +42,16 @@ pub fn find_unsafe_in_string(
     include_tests: IncludeTests,
     extern_definitions: &RsFileExternDefinitions,
     file: &PathBuf,
+    package_id: &str,
 ) -> Result<RsFileMetrics, syn::Error> {
     use syn::visit::Visit;
     let syntax = syn::parse_file(src)?;
-    let mut vis =
-        GeigerSynVisitor::new(include_tests, extern_definitions, file);
+    let mut vis = GeigerSynVisitor::new(
+        include_tests,
+        extern_definitions,
+        file,
+        package_id,
+    );
     vis.visit_file(&syntax);
     Ok(vis.metrics)
 }
@@ -80,6 +87,8 @@ mod find_tests {
     use rstest::*;
     use std::{collections::HashMap, io::Write};
     use tempfile::tempdir;
+
+    const PAKCAGE_ID: &str = "geiger 0.1.0 (path+file:///cargo-geiger/geiger)";
 
     const FILE_CONTENT_STRING: &str = "use std::io::Write;
 
@@ -192,6 +201,7 @@ mod tests {
             &lib_file_path,
             input_include_tests,
             &RsFileExternDefinitions::new(),
+            PAKCAGE_ID,
         );
 
         assert!(unsafe_in_file_result.is_ok());
@@ -272,6 +282,7 @@ mod tests {
             input_include_tests,
             &RsFileExternDefinitions::new(),
             &PathBuf::from("/test/file_content_string"),
+            PAKCAGE_ID,
         );
 
         assert!(unsafe_in_string_result.is_ok());

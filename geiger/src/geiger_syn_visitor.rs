@@ -31,6 +31,8 @@ pub struct GeigerSynVisitor<'a> {
     file: &'a PathBuf,
 
     current_function: Option<String>,
+
+    package_id: &'a str,
 }
 
 impl<'a> GeigerSynVisitor<'a> {
@@ -38,6 +40,7 @@ impl<'a> GeigerSynVisitor<'a> {
         include_tests: IncludeTests,
         extern_definitions: &'a RsFileExternDefinitions,
         file: &'a PathBuf,
+        package_id: &'a str,
     ) -> Self {
         GeigerSynVisitor {
             include_tests,
@@ -46,6 +49,7 @@ impl<'a> GeigerSynVisitor<'a> {
             extern_definitions,
             file,
             current_function: None, //we assume that we are in the global scope
+            package_id: package_id,
         }
     }
 
@@ -125,6 +129,7 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
                                         .unwrap_or(String::from(
                                             "__global_scope__",
                                         )),
+                                    package_id: self.package_id.to_string(),
                                 });
                         }
                     }
