@@ -29,6 +29,8 @@ pub struct GeigerSynVisitor<'a> {
     extern_definitions: &'a RsFileExternDefinitions,
 
     file: &'a PathBuf,
+
+    current_function: Option<String>,
 }
 
 impl<'a> GeigerSynVisitor<'a> {
@@ -43,6 +45,7 @@ impl<'a> GeigerSynVisitor<'a> {
             unsafe_scopes: 0,
             extern_definitions,
             file,
+            current_function: None, //we assume that we are in the global scope
         }
     }
 
@@ -73,7 +76,10 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
         }
         self.metrics.counters.functions.count(unsafe_fn);
 
+        let before = self.current_function.clone();
+        self.current_function = Some(item_fn.sig.ident.to_string());
         visit::visit_item_fn(self, item_fn);
+        self.current_function = before;
         if item_fn.sig.unsafety.is_some() {
             self.exit_unsafe_scope()
         }
@@ -113,6 +119,12 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
                                     file: self.file.clone(),
                                     line: ident.span().start().line,
                                     column: ident.span().start().column,
+                                    calling_function: self
+                                        .current_function
+                                        .clone()
+                                        .unwrap_or(String::from(
+                                            "__global_scope__",
+                                        )),
                                 });
                         }
                     }

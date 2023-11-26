@@ -36,6 +36,7 @@ pub struct ExternCall {
     pub file: PathBuf,
     pub line: usize,
     pub column: usize,
+    pub calling_function: String,
 }
 
 /// Scan result for a single `.rs` file.
