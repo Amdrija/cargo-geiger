@@ -249,7 +249,7 @@ where
     let processed_count = AtomicUsize::new(0);
     package_code_files.into_par_iter().for_each_with(
         (extern_definitions.clone(), ignored.clone()),
-        |(package_id_to_metrics, ignored), (_, rs_code_file)| {
+        |(package_id_to_metrics, ignored), (package_id, rs_code_file)| {
             if let RsFile::CustomBuildRoot(path_buf) = rs_code_file {
                 let mut ignored = ignored.lock().unwrap();
                 ignored.insert(path_buf);
@@ -261,7 +261,7 @@ where
             {
                 return;
             }
-            match find_extern_in_file(&path_buf, include_rust_fns) {
+            match find_extern_in_file(&path_buf, include_rust_fns, &package_id.to_string()) {
                 Err(error) => {
                     handle_unsafe_in_file_error(
                         allow_partial_results,

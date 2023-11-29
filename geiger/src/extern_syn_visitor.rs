@@ -14,6 +14,7 @@ pub struct ExternDefinition {
     pub name: String,
     pub contains_pointer_argument: bool,
     pub args: Vec<String>,
+    pub package_id: String,
 }
 
 fn convert_fn_args_to_vec_type(args: &Punctuated<FnArg, Comma>) -> Vec<String> {
@@ -91,18 +92,22 @@ pub struct ExternSynVisitor<'a> {
     pub extern_definitions: RsFileExternDefinitions,
 
     current_abi: Option<Abi>,
+
+    pub package_id: &'a str,
 }
 
 impl<'a> ExternSynVisitor<'a> {
     pub fn new(
         file: &'a PathBuf,
         include_rust_fns: IncludeRustFunctions,
+        package_id: &'a str,
     ) -> Self {
         ExternSynVisitor {
             file,
             include_rust_fns,
             extern_definitions: RsFileExternDefinitions::new(),
             current_abi: None,
+            package_id,
         }
     }
 
@@ -146,6 +151,7 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
                             contains_pointer_argument:
                                 check_arguments_contain_pointer(&i.sig),
                             args: convert_fn_args_to_vec_type(&i.sig.inputs),
+                            package_id: self.package_id.to_string(),
                         },
                     );
                 }
@@ -187,6 +193,7 @@ impl<'ast, 'a> visit::Visit<'ast> for ExternSynVisitor<'a> {
                         &i.sig,
                     ),
                     args: convert_fn_args_to_vec_type(&i.sig.inputs),
+                    package_id: self.package_id.to_string(),
                 },
             );
         }

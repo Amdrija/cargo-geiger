@@ -59,20 +59,28 @@ pub fn find_unsafe_in_string(
 pub fn find_extern_in_file(
     path: &Path,
     include_rust_fns: IncludeRustFunctions,
+    package_id: &str,
 ) -> Result<RsFileExternDefinitions, ScanFileError> {
     let src = load_file(path)?;
-    find_extern_in_string(&path.to_path_buf(), &src, include_rust_fns)
-        .map_err(|e| ScanFileError::Syn(e, path.to_path_buf()))
+    find_extern_in_string(
+        &path.to_path_buf(),
+        &src,
+        include_rust_fns,
+        package_id,
+    )
+    .map_err(|e| ScanFileError::Syn(e, path.to_path_buf()))
 }
 
 pub fn find_extern_in_string(
     file_path: &PathBuf,
     src: &str,
     include_rust_fns: IncludeRustFunctions,
+    package_id: &str,
 ) -> Result<RsFileExternDefinitions, syn::Error> {
     use syn::visit::Visit;
     let syntax = syn::parse_file(src)?;
-    let mut vis = ExternSynVisitor::new(file_path, include_rust_fns);
+    let mut vis =
+        ExternSynVisitor::new(file_path, include_rust_fns, package_id);
     vis.visit_file(&syntax);
     Ok(vis.extern_definitions)
 }
@@ -375,25 +383,25 @@ mod tests {
             &PathBuf::from("/test/extern_file_content_string"),
             IncludeRustFunctions::No,
             RsFileExternDefinitions::from([
-            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name:  String::from("snappy_compress"), contains_pointer_argument: true, args: vec![]}),
-            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true, args: vec![]  }),
-            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false, args: vec![]  }),
-            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true, args: vec![]  }),
-            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true, args: vec![] }),
-            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: 59, column: 11, name: String::from("foo"), contains_pointer_argument: false, args: vec![]  }),
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name:  String::from("snappy_compress"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t"),String::from("*mut u8"),String::from("*mut size_t")], package_id: PAKCAGE_ID.to_string()}),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t"),String::from("*mut u8"),String::from("*mut size_t")], package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(), line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false, args: vec![String::from("size_t")],package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(), line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t"), String::from("*mut size_t")],package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t")],package_id: PAKCAGE_ID.to_string() }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(), line: 59, column: 11, name: String::from("foo"), contains_pointer_argument: false, args: vec![String::from("size_t")],package_id: PAKCAGE_ID.to_string()  }),
         ])),
         case(
             &PathBuf::from("/test/extern_file_content_string"),
             IncludeRustFunctions::Yes,
             RsFileExternDefinitions::from([
-            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name: String::from("snappy_compress"), contains_pointer_argument: true, args: vec![] }),
-            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true, args: vec![]  }),
-            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(),  line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false, args: vec![]  }),
-            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(),  line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true, args: vec![]  }),
-            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true, args: vec![] }),
-            (String::from("hello_from_rust"), ExternDefinition { file: file_path.clone(),  line: 28, column: 18, name: String::from("hello_from_rust"), contains_pointer_argument: false, args: vec![]  }),
-            (String::from("foo"), ExternDefinition { file: file_path.clone(),  line: 59, column: 11, name: String::from("foo"), contains_pointer_argument: false, args: vec![]  }),
-            (String::from("bar"), ExternDefinition { file: file_path.clone(),  line: 64, column: 22, name: String::from("bar"), contains_pointer_argument: false, args: vec![]  }),
+            (String::from("snappy_compress"), ExternDefinition { file: file_path.clone(),  line: 6, column: 7, name: String::from("snappy_compress"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t"),String::from("*mut u8"),String::from("*mut size_t")],package_id: PAKCAGE_ID.to_string() }),
+            (String::from("snappy_uncompress"), ExternDefinition { file: file_path.clone(), line: 10, column: 7, name: String::from("snappy_uncompress"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t"),String::from("*mut u8"),String::from("*mut size_t")],package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("snappy_max_compressed_length"), ExternDefinition { file: file_path.clone(),  line: 14, column: 7, name: String::from("snappy_max_compressed_length"), contains_pointer_argument: false, args: vec![String::from("size_t")],package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("snappy_uncompressed_length"), ExternDefinition { file: file_path.clone(),  line: 15, column: 7, name: String::from("snappy_uncompressed_length"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t"), String::from("*mut size_t")],package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("snappy_validate_compressed_buffer"), ExternDefinition { file: file_path.clone(),  line: 18, column: 7, name: String::from("snappy_validate_compressed_buffer"), contains_pointer_argument: true, args: vec![String::from("*const u8"), String::from("size_t")],package_id: PAKCAGE_ID.to_string() }),
+            (String::from("hello_from_rust"), ExternDefinition { file: file_path.clone(),  line: 28, column: 18, name: String::from("hello_from_rust"), contains_pointer_argument: false, args: vec![],package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("foo"), ExternDefinition { file: file_path.clone(),  line: 59, column: 11, name: String::from("foo"), contains_pointer_argument: false, args: vec![String::from("size_t")],package_id: PAKCAGE_ID.to_string()  }),
+            (String::from("bar"), ExternDefinition { file: file_path.clone(),  line: 64, column: 22, name: String::from("bar"), contains_pointer_argument: false, args: vec![],package_id: PAKCAGE_ID.to_string()  }),
         ]))
     )]
     fn find_extern_in_string_test(
@@ -405,6 +413,7 @@ mod tests {
             file_path,
             EXTERN_FILE_CONTENT_STRING,
             include_rust_fns,
+            PAKCAGE_ID,
         );
 
         assert!(result.is_ok());
@@ -412,50 +421,54 @@ mod tests {
         let result = result.unwrap();
 
         for (name, extern_definition) in &result {
-            println!("{}", name);
             assert!(expected_rs_file_extern_definitions.contains_key(name));
-            assert!(
+            let expected_definition =
+                expected_rs_file_extern_definitions.get(name).unwrap();
+
+            assert_eq!(
                 <std::path::PathBuf as AsRef<std::path::Path>>::as_ref(
-                    &expected_rs_file_extern_definitions
-                        .get(name)
-                        .unwrap()
-                        .file
-                ) == file_path
+                    &expected_definition.file
+                ),
+                <std::path::PathBuf as AsRef<std::path::Path>>::as_ref(
+                    &extern_definition.file
+                )
             );
-            assert!(
-                expected_rs_file_extern_definitions.get(name).unwrap().line
-                    == extern_definition.line
+            assert_eq!(expected_definition.line, extern_definition.line);
+            assert_eq!(expected_definition.column, extern_definition.column);
+            assert_eq!(
+                expected_definition.contains_pointer_argument,
+                extern_definition.contains_pointer_argument
             );
-            assert!(
-                expected_rs_file_extern_definitions
-                    .get(name)
-                    .unwrap()
-                    .column
-                    == extern_definition.column
-            );
-            assert!(
-                expected_rs_file_extern_definitions
-                    .get(name)
-                    .unwrap()
-                    .contains_pointer_argument
-                    == extern_definition.contains_pointer_argument
+            assert_eq!(expected_definition.args, extern_definition.args);
+            assert_eq!(
+                expected_definition.package_id,
+                extern_definition.package_id
             );
         }
 
-        for (name, extern_definition) in &expected_rs_file_extern_definitions {
+        for (name, expected_definition) in &expected_rs_file_extern_definitions
+        {
             assert!(result.contains_key(name));
-            assert!(
+            let extern_definition = result.get(name).unwrap();
+
+            assert_eq!(
                 <std::path::PathBuf as AsRef<std::path::Path>>::as_ref(
-                    &result.get(name).unwrap().file
-                ) == file_path
+                    &extern_definition.file
+                ),
+                <std::path::PathBuf as AsRef<std::path::Path>>::as_ref(
+                    &expected_definition.file
+                )
             );
-            assert!(result.get(name).unwrap().line == extern_definition.line);
-            assert!(
-                result.get(name).unwrap().column == extern_definition.column
+            assert_eq!(extern_definition.line, expected_definition.line);
+            assert_eq!(extern_definition.column, expected_definition.column);
+            assert_eq!(
+                extern_definition.contains_pointer_argument,
+                expected_definition.contains_pointer_argument
             );
-            assert!(
-                result.get(name).unwrap().contains_pointer_argument
-                    == extern_definition.contains_pointer_argument
+            assert_eq!(extern_definition.args, expected_definition.args);
+            assert_eq!(
+                extern_definition.package_id,
+                expected_definition.package_id
             );
         }
 
