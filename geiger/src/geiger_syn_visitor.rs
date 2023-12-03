@@ -84,6 +84,7 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
         self.current_function = Some(item_fn.sig.ident.to_string());
         visit::visit_item_fn(self, item_fn);
         self.current_function = before;
+
         if item_fn.sig.unsafety.is_some() {
             self.exit_unsafe_scope()
         }
@@ -179,7 +180,12 @@ impl<'ast> visit::Visit<'ast> for GeigerSynVisitor<'_> {
             .counters
             .methods
             .count(i.sig.unsafety.is_some());
+
+        let before = self.current_function.clone();
+        self.current_function = Some(i.sig.ident.to_string());
         visit::visit_impl_item_method(self, i);
+        self.current_function = before;
+
         if i.sig.unsafety.is_some() {
             self.exit_unsafe_scope()
         }
